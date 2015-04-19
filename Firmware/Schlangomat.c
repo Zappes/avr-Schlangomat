@@ -108,6 +108,7 @@ int main(void) {
 
 			if(strncmp(usb_buffer, "ESP ", 4) == 0) {
 				sprintf(output_buffer, "> UART: %s\r\n", usb_buffer + 4);
+				usb_write_string(output_buffer);
 
 				uart_writeln_string(usb_buffer + 4);
 			}
@@ -117,11 +118,22 @@ int main(void) {
 			else if(strncmp(usb_buffer, "OFF", 3) == 0) {
 					RELAY_PORT &= ~(_BV(RELAY_PIN1) | _BV(RELAY_PIN2) | _BV(RELAY_PIN3) | _BV(RELAY_PIN4));
 			}
+			else if(strncmp(usb_buffer, "SENS", 4) == 0) {
+				uint16_t tmp, hum = 0;
+				uint8_t err = 0;
+
+				err = am2302_read(&hum, &tmp, PD6);
+				sprintf(output_buffer, "Sensor 1 (%d): Temp %d,%dC, Hum %d,%d%%\r\n", err, tmp/10, tmp%10, hum/10, hum%10);
+				usb_write_string(output_buffer);
+				err = am2302_read(&hum, &tmp, PD7);
+				sprintf(output_buffer, "Sensor 2 (%d): Temp %d,%dC, Hum %d,%d%%\r\n", err, tmp/10, tmp%10, hum/10, hum%10);
+				usb_write_string(output_buffer);
+			}
 			else {
 				sprintf(output_buffer, "?: %s\r\n", usb_buffer);
+				usb_write_string(output_buffer);
 			}
 
-			usb_write_string(output_buffer);
 			usb_ready = 0;
 		}
 

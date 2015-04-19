@@ -38,11 +38,13 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/delay.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "lib/uart.h"
 #include "lib/usb.h"
+#include "lib/am2302.h"
 
 #endif
 

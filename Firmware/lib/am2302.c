@@ -47,35 +47,51 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define SENSOR_sda_out		DDR_SENSOR |= (1 << SENSOR)
-#define SENSOR_sda_in			DDR_SENSOR &= ~(1 << SENSOR) // release sda => hi in consequence of pullup
-#define SENSOR_sda_low    PIN_SENSOR &= ~(1 << SENSOR)
-#define SENSOR_is_hi			PIN_SENSOR & (1 << SENSOR)
-#define SENSOR_is_low		!(PIN_SENSOR & (1 << SENSOR))
+static inline void am2302_sda_out(sensor) {
+	DDR_SENSOR |= (1 << sensor);
+}
+
+static inline void am2302_sda_in(sensor) {
+	DDR_SENSOR &= ~(1 << sensor);
+}
+
+static inline void am2302_sda_low(sensor) {
+	PORT_SENSOR &= ~(1 << sensor);
+}
+
+static inline uint8_t am2302_is_hi(sensor) {
+	return PIN_SENSOR & (1 << sensor);
+}
+
+static inline uint8_t am2302_is_low(sensor) {
+	return !(PIN_SENSOR & (1 << sensor));
+}
 
 
-uint8_t am2302(uint16_t *humidity, uint16_t *temp)
+uint8_t am2302_read(uint16_t *humidity, uint16_t *temp, uint8_t sensor)
 {
-	if (SENSOR_is_low)
+	am2302_sda_in(sensor);
+
+	if (am2302_is_low(sensor))
 	{
 		// bus not free
 		return 1;
 	}
 
-	SENSOR_sda_out;
-	SENSOR_sda_low;	// MCU start signal
-	_delay_ms(20);	// start signal (pull sda down for min 0.8ms and maximum 20ms)
-	SENSOR_sda_in;
+	am2302_sda_out(sensor);
+	am2302_sda_low(sensor);	// MCU start signal
+	_delay_ms(15);	// start signal (pull sda down for min 0.8ms and maximum 20ms)
+	am2302_sda_in(sensor);
 
 	// Bus master has released time min: 20us, typ: 30us, max: 200us
 	uint8_t timeout = 200;
-	while(SENSOR_is_hi) {_delay_us(1); if (!timeout--) {return 2;}}
+	while(am2302_is_hi(sensor)) {_delay_us(1); if (!timeout--) {return 2;}}
 
 	// AM2302 response signal min: 75us typ:80us max:85us
 	timeout = 85;
-	while(SENSOR_is_low) {_delay_us(1); if (!timeout--) {return 3;}}  // response to low time
+	while(am2302_is_low(sensor)) {_delay_us(1); if (!timeout--) {return 3;}}  // response to low time
 	timeout = 85;
-	while(SENSOR_is_hi) {_delay_us(1); if (!timeout--) {return 4;}}  // response to high time
+	while(am2302_is_hi(sensor)) {_delay_us(1); if (!timeout--) {return 4;}}  // response to high time
 
 
 	/*
@@ -92,14 +108,14 @@ uint8_t am2302(uint16_t *humidity, uint16_t *temp)
 		for(uint8_t j = 1; j <= 8; j++) // get 8 bits from sensor
 		{
 			timeout = 55;
-			while(SENSOR_is_low) {_delay_us(1); if (!timeout--) {return 5;}} // signal "0", "1" low time
+			while(am2302_is_low(sensor)) {_delay_us(1); if (!timeout--) {return 5;}} // signal "0", "1" low time
 			_delay_us(30);
 			sensor_byte <<= 1; // add new lower byte
-			if (SENSOR_is_hi) // if sda high after 30us => bit=1 else bit=0
+			if (am2302_is_hi(sensor)) // if sda high after 30us => bit=1 else bit=0
 			{
 				sensor_byte |= 1;
 				timeout = 45;  // 30us - 75us = 45us
-				while(SENSOR_is_hi) {_delay_us(1); if (!timeout--) {return 6;}}
+				while(am2302_is_hi(sensor)) {_delay_us(1); if (!timeout--) {return 6;}}
 			}
 		}
 		sensor_data[i] = sensor_byte;
