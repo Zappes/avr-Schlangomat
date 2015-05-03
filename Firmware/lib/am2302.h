@@ -21,7 +21,6 @@
 #ifndef AM2302_H_
 #define AM2302_H_
 
-
 #include <avr/io.h>
 
 #define DDR_SENSOR   DDRD
@@ -29,7 +28,5 @@
 #define PIN_SENSOR   PIND
 
 uint8_t am2302_read(uint16_t *humidity, uint16_t *temp, uint8_t sensor);
-
-
 
 #endif /* AM2302_H_ */
