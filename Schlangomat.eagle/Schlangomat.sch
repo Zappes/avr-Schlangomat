@@ -15420,8 +15420,6 @@ Types:&lt;p&gt;
 <part name="J2" library="con-molex" deviceset="22-?-03" device="27-2031" value="Sensor2"/>
 <part name="P+7" library="supply1" deviceset="+5V" device=""/>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
-<part name="R7" library="rcl" deviceset="R-EU_" device="M0805" value="1K"/>
-<part name="R8" library="rcl" deviceset="R-EU_" device="M0805" value="1K"/>
 <part name="X1" library="con-wago" deviceset="236" device="-7,62" technology="-501" value="AC-IN"/>
 <part name="X2" library="con-wago" deviceset="236" device="-7,62" technology="-501" value="AC-OUT-1"/>
 <part name="X3" library="con-wago" deviceset="236" device="-7,62" technology="-501" value="AC-OUT-2"/>
@@ -15963,8 +15961,6 @@ Types:&lt;p&gt;
 <instance part="J2" gate="-3" x="185.42" y="-2.54"/>
 <instance part="P+7" gate="1" x="172.72" y="35.56"/>
 <instance part="GND9" gate="1" x="175.26" y="-12.7"/>
-<instance part="R7" gate="G$1" x="162.56" y="7.62"/>
-<instance part="R8" gate="G$1" x="162.56" y="22.86"/>
 </instances>
 <busses>
 </busses>
@@ -16154,18 +16150,10 @@ Types:&lt;p&gt;
 <wire x1="182.88" y1="15.24" x2="172.72" y2="15.24" width="0.1524" layer="91"/>
 <pinref part="J2" gate="-2" pin="S"/>
 <wire x1="182.88" y1="0" x2="172.72" y2="0" width="0.1524" layer="91"/>
-<wire x1="172.72" y1="0" x2="172.72" y2="7.62" width="0.1524" layer="91"/>
 <junction x="172.72" y="15.24"/>
 <pinref part="P+7" gate="1" pin="+5V"/>
-<wire x1="172.72" y1="7.62" x2="172.72" y2="15.24" width="0.1524" layer="91"/>
-<wire x1="172.72" y1="33.02" x2="172.72" y2="22.86" width="0.1524" layer="91"/>
-<pinref part="R8" gate="G$1" pin="2"/>
-<wire x1="172.72" y1="22.86" x2="172.72" y2="15.24" width="0.1524" layer="91"/>
-<wire x1="172.72" y1="22.86" x2="167.64" y2="22.86" width="0.1524" layer="91"/>
-<junction x="172.72" y="22.86"/>
-<pinref part="R7" gate="G$1" pin="2"/>
-<wire x1="167.64" y1="7.62" x2="172.72" y2="7.62" width="0.1524" layer="91"/>
-<junction x="172.72" y="7.62"/>
+<wire x1="172.72" y1="0" x2="172.72" y2="15.24" width="0.1524" layer="91"/>
+<wire x1="172.72" y1="33.02" x2="172.72" y2="15.24" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$5" class="0">
@@ -16178,25 +16166,15 @@ Types:&lt;p&gt;
 <net name="SENS1" class="0">
 <segment>
 <pinref part="J1" gate="-1" pin="S"/>
-<wire x1="182.88" y1="17.78" x2="154.94" y2="17.78" width="0.1524" layer="91"/>
+<wire x1="182.88" y1="17.78" x2="149.86" y2="17.78" width="0.1524" layer="91"/>
 <label x="149.86" y="17.78" size="1.016" layer="95" rot="R180" xref="yes"/>
-<pinref part="R8" gate="G$1" pin="1"/>
-<wire x1="154.94" y1="17.78" x2="149.86" y2="17.78" width="0.1524" layer="91"/>
-<wire x1="157.48" y1="22.86" x2="154.94" y2="22.86" width="0.1524" layer="91"/>
-<wire x1="154.94" y1="22.86" x2="154.94" y2="17.78" width="0.1524" layer="91"/>
-<junction x="154.94" y="17.78"/>
 </segment>
 </net>
 <net name="SENS2" class="0">
 <segment>
 <pinref part="J2" gate="-1" pin="S"/>
-<wire x1="182.88" y1="2.54" x2="154.94" y2="2.54" width="0.1524" layer="91"/>
+<wire x1="182.88" y1="2.54" x2="149.86" y2="2.54" width="0.1524" layer="91"/>
 <label x="149.86" y="2.54" size="1.016" layer="95" rot="R180" xref="yes"/>
-<pinref part="R7" gate="G$1" pin="1"/>
-<wire x1="154.94" y1="2.54" x2="149.86" y2="2.54" width="0.1524" layer="91"/>
-<wire x1="157.48" y1="7.62" x2="154.94" y2="7.62" width="0.1524" layer="91"/>
-<wire x1="154.94" y1="7.62" x2="154.94" y2="2.54" width="0.1524" layer="91"/>
-<junction x="154.94" y="2.54"/>
 </segment>
 </net>
 <net name="PF0" class="0">

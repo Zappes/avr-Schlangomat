@@ -9,6 +9,9 @@
 #define PARSER_H_
 
 #include <stdbool.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 int get_num_from_param(char* param_buffer, int max);
 bool is_command(char* buffer, char* command);

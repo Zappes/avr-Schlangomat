@@ -33,27 +33,15 @@ void handle_usb(char* buffer) {
 	usb_ready = 1;
 }
 
-#define SENSOR_PIN1 PD6
-#define SENSOR_PIN2 PD7
-#define SENSOR_COUNT 2
-
-uint8_t sensor_sensorpins[] = {SENSOR_PIN1, SENSOR_PIN2};
-
-void sensor_dump_to_usb(uint8_t sensor) {
-	if(sensor > 0 && sensor <= SENSOR_COUNT) {
-		uint16_t tmp, hum = 0;
-		uint8_t err = 0;
-
-		err = am2302_read(&hum, &tmp, sensor_sensorpins[sensor - 1]);
-		if(err) {
-			usb_writeln_formatted("Sens[%d]: error %d", sensor, err);
+void dump_sensors(void) {
+	for (int i = 1; i <= SENSORS_COUNT; i++) {
+		sensor_reading reading;
+		int err = sensors_read_rensor(i, &reading);
+		if (err) {
+			usb_writeln_formatted("Sens[%d]: error %d", i, err);
+		} else {
+			usb_writeln_formatted("Sens[%d]: Temp %d,%dC, Hum %d,%d%%", i, reading.temperature, reading.temperature_frac, reading.humidity, reading.humidity_frac);
 		}
-		else {
-			usb_writeln_formatted("Sens[%d]: Temp %d,%dC, Hum %d,%d%%", sensor, tmp / 10, tmp % 10, hum / 10, hum % 10);
-		}
-	}
-	else {
-		usb_writeln_formatted("Sens[%d]: sensor unknown", sensor);
 	}
 }
 
@@ -84,6 +72,17 @@ int main(void) {
 				sprintf(output_buffer, "> UART: %s\r\n", usb_buffer + 4);
 				usb_write_string(output_buffer);
 				uart_writeln_string((char*) usb_buffer + 4);
+			} else if (is_command(usb_buffer, "setrule")) {
+				int rule_number = atoi(usb_buffer + 7);
+				char* rule_start = usb_buffer + 7;
+				while (*rule_start < ':' && *rule_start != 0)
+					rule_start++;
+				usb_writeln_formatted("SETRULE %d [%d]:", rule_number, rules_set_rule(rule_number, rule_start));
+			} else if (is_command(usb_buffer, "getrule")) {
+				char buffer[8] = { 0 };
+				int rule_number = atoi(usb_buffer + 7);
+				int result = rules_print_rule(rule_number, buffer);
+				usb_writeln_formatted("GETRULE %d [%d]: %s", rule_number, result, buffer);
 			} else if (is_command(usb_buffer, "on")) {
 				relay_on(get_num_from_param((char*) usb_buffer + 2, 4));
 			} else if (is_command(usb_buffer, "off")) {
@@ -99,8 +98,7 @@ int main(void) {
 					}
 				}
 			} else if (is_command(usb_buffer, "sens")) {
-				sensor_dump_to_usb(1);
-				sensor_dump_to_usb(2);
+				dump_sensors();
 			} else {
 				usb_writeln_formatted("?: %s\r\n", usb_buffer);
 			}

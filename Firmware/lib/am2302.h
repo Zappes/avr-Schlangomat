@@ -22,6 +22,7 @@
 #define AM2302_H_
 
 #include <avr/io.h>
+#include "usb.h"
 
 #define DDR_SENSOR   DDRD
 #define PORT_SENSOR  PORTD

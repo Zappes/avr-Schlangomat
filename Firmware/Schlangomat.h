@@ -48,6 +48,9 @@
 #include "lib/usb.h"
 #include "lib/am2302.h"
 #include "lib/relay.h"
+#include "lib/rules.h"
+#include "lib/parser.h"
+#include "lib/sensors.h"
 
 #endif
 

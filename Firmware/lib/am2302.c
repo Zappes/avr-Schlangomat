@@ -52,6 +52,7 @@ static inline void am2302_sda_out(uint8_t sensor) {
 
 static inline void am2302_sda_in(uint8_t sensor) {
 	DDR_SENSOR &= ~(1 << sensor);
+	PORT_SENSOR |= 1 << sensor;
 }
 
 static inline void am2302_sda_low(uint8_t sensor) {
@@ -143,7 +144,7 @@ uint8_t am2302_read(uint16_t *humidity, uint16_t *temp, uint8_t sensor) {
 	// checksum
 	if (((sensor_data[0] + sensor_data[1] + sensor_data[2] + sensor_data[3]) & 0xff) != sensor_data[4]) {
 		// debug output
-		//printf("%b %b %b %b %b %b" CR, sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], ((sensor_data[0]+sensor_data[1]+sensor_data[2]+sensor_data[3]) & 0xff ));
+		usb_writeln_formatted("Data: %d %d %d %d %d %d", sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], ((sensor_data[0]+sensor_data[1]+sensor_data[2]+sensor_data[3]) & 0xff ));
 		return 7;
 	}
 
