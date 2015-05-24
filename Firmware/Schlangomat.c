@@ -34,11 +34,10 @@ void handle_usb(char* buffer) {
 }
 
 void dump_sensors(void) {
-	for (int i = 1; i <= SENSORS_COUNT; i++) {
-		sensor_reading reading;
-		int err = sensors_read_rensor(i, &reading);
-		if (err) {
-			usb_writeln_formatted("Sens[%d]: error %d", i, err);
+	for (uint8_t i = 1; i <= SENSORS_COUNT; i++) {
+		sensor_reading reading = sensors_read_sensor(i);
+		if (reading.error) {
+			usb_writeln_formatted("Sens[%d]: error %d x%d", i, reading.error, reading.error_count);
 		} else {
 			usb_writeln_formatted("Sens[%d]: Temp %d,%dC, Hum %d,%d%%", i, reading.temperature, reading.temperature_frac, reading.humidity, reading.humidity_frac);
 		}
@@ -58,37 +57,47 @@ int main(void) {
 	uart_set_callback(handle_uart);
 
 	relay_setup();
+
+	sensors_setup();
+
+	timer_setup(SENSOR_INTERVAL_SECS);
+
 	sei();
 
 	char output_buffer[OUTPUT_BUFFER_SIZE];
 
 	for (;;) {
-		usb_read_loop();
+		if(timer_ready()) {
+			sensors_update_sensor(0);
+			timer_done();
+		}
 
+		usb_read_loop();
 		if (usb_ready) {
 			output_buffer[0] = 0;
+			char* input = (char*)usb_buffer;
 
-			if (is_command(usb_buffer, "esp")) {
+			if (is_command(input, "esp")) {
 				sprintf(output_buffer, "> UART: %s\r\n", usb_buffer + 4);
 				usb_write_string(output_buffer);
-				uart_writeln_string((char*) usb_buffer + 4);
-			} else if (is_command(usb_buffer, "setrule")) {
-				int rule_number = atoi(usb_buffer + 7);
-				char* rule_start = usb_buffer + 7;
+				uart_writeln_string(input + 4);
+			} else if (is_command(input, "setrule")) {
+				int rule_number = atoi(input + 7);
+				char* rule_start = input + 7;
 				while (*rule_start < ':' && *rule_start != 0)
 					rule_start++;
 				usb_writeln_formatted("SETRULE %d [%d]:", rule_number, rules_set_rule(rule_number, rule_start));
-			} else if (is_command(usb_buffer, "getrule")) {
+			} else if (is_command(input, "getrule")) {
 				char buffer[8] = { 0 };
-				int rule_number = atoi(usb_buffer + 7);
+				int rule_number = atoi(input + 7);
 				int result = rules_print_rule(rule_number, buffer);
 				usb_writeln_formatted("GETRULE %d [%d]: %s", rule_number, result, buffer);
-			} else if (is_command(usb_buffer, "on")) {
-				relay_on(get_num_from_param((char*) usb_buffer + 2, 4));
-			} else if (is_command(usb_buffer, "off")) {
-				relay_off(get_num_from_param((char*) usb_buffer + 3, 4));
-			} else if (is_command(usb_buffer, "state")) {
-				int relay_num = get_num_from_param((char*) usb_buffer + 5, 4);
+			} else if (is_command(input, "on")) {
+				relay_on(get_num_from_param(input + 2, 4));
+			} else if (is_command(input, "off")) {
+				relay_off(get_num_from_param(input + 3, 4));
+			} else if (is_command(input, "state")) {
+				int relay_num = get_num_from_param(input + 5, 4);
 
 				if (relay_num) {
 					usb_writeln_formatted("Pig[%d]: %s", relay_num, relay_state(relay_num) ? "on" : "off");
@@ -97,7 +106,7 @@ int main(void) {
 						usb_writeln_formatted("Pig[%d]: %s", i, relay_state(i) ? "on" : "off");
 					}
 				}
-			} else if (is_command(usb_buffer, "sens")) {
+			} else if (is_command(input, "sens")) {
 				dump_sensors();
 			} else {
 				usb_writeln_formatted("?: %s\r\n", usb_buffer);

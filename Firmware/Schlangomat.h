@@ -36,6 +36,8 @@
 #ifndef _SCHLANGOMAT_H_
 #define _SCHLANGOMAT_H_
 
+#define SENSOR_INTERVAL_SECS 5
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
@@ -51,6 +53,7 @@
 #include "lib/rules.h"
 #include "lib/parser.h"
 #include "lib/sensors.h"
+#include "lib/timer.h"
 
 #endif
 

@@ -15,15 +15,19 @@
 #define SENSORS_PIN2 PD7
 #define SENSORS_COUNT 2
 
-#define SENSORS_ERR_INDEX 8;
+#define SENSORS_ERR_INDEX 8
 
 typedef struct {
+		uint8_t error;
+		uint8_t error_count;
 		uint8_t temperature;
 		uint8_t temperature_frac;
 		uint8_t humidity;
 		uint8_t humidity_frac;
 } sensor_reading;
 
-int sensors_read_rensor(uint8_t sensor, sensor_reading* result);
+void sensors_setup(void);
+void sensors_update_sensor(uint8_t sensor);
+sensor_reading sensors_read_sensor(uint8_t sensor);
 
 #endif /* SENSORS_H_ */
