@@ -36,7 +36,7 @@ uart_callback_t uart_set_callback(uart_callback_t cb) {
 /*
  * Initializes the USART registers, enables the ISR
  */
-void uart_setup(void) {
+void uart_setup(uart_callback_t cb) {
 	UCSR1C |= (1 << UCSZ10) | (1 << UCSZ11); // 1 Stop-Bit, 8 Bits
 	UCSR1B = (1 << TXEN1) | (1 << RXEN1); // enable RX/TX
 	UCSR1B |= (1 << RXCIE1); // Enable the USART Receive Complete interrupt (USART_RXC)
@@ -51,6 +51,9 @@ void uart_setup(void) {
 
 	// clear command buffer.
 	memset(uart_command_buffer, 0, UART_COMMAND_BUFFER_SIZE);
+
+	// set command processor callback
+	uart_set_callback(cb);
 }
 
 /*

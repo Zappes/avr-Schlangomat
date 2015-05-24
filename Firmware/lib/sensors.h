@@ -24,10 +24,10 @@ typedef struct {
 		uint8_t temperature_frac;
 		uint8_t humidity;
 		uint8_t humidity_frac;
-} sensor_reading;
+} Sensor_Reading;
 
 void sensors_setup(void);
 void sensors_update_sensor(uint8_t sensor);
-sensor_reading sensors_read_sensor(uint8_t sensor);
+Sensor_Reading sensors_read_sensor(uint8_t sensor);
 
 #endif /* SENSORS_H_ */

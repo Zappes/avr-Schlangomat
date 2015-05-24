@@ -35,7 +35,7 @@ void handle_usb(char* buffer) {
 
 void dump_sensors(void) {
 	for (uint8_t i = 1; i <= SENSORS_COUNT; i++) {
-		sensor_reading reading = sensors_read_sensor(i);
+		Sensor_Reading reading = sensors_read_sensor(i);
 		if (reading.error) {
 			usb_writeln_formatted("Sens[%d]: error %d x%d", i, reading.error, reading.error_count);
 		} else {
@@ -50,16 +50,11 @@ void dump_sensors(void) {
 int main(void) {
 	cli();
 
-	usb_setup();
-	usb_set_callback(handle_usb);
-
-	uart_setup();
-	uart_set_callback(handle_uart);
-
+	usb_setup(handle_usb);
+	uart_setup(handle_uart);
 	relay_setup();
-
+	rules_setup();
 	sensors_setup();
-
 	timer_setup(SENSOR_INTERVAL_SECS);
 
 	sei();
@@ -69,6 +64,7 @@ int main(void) {
 	for (;;) {
 		if(timer_ready()) {
 			sensors_update_sensor(0);
+			rules_execute();
 			timer_done();
 		}
 
@@ -86,7 +82,7 @@ int main(void) {
 				char* rule_start = input + 7;
 				while (*rule_start < ':' && *rule_start != 0)
 					rule_start++;
-				usb_writeln_formatted("SETRULE %d [%d]:", rule_number, rules_set_rule(rule_number, rule_start));
+				usb_writeln_formatted("SETRULE %d [%d]", rule_number, rules_set_rule(rule_number, rule_start));
 			} else if (is_command(input, "getrule")) {
 				char buffer[8] = { 0 };
 				int rule_number = atoi(input + 7);

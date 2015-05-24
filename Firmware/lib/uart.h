@@ -31,7 +31,7 @@ uart_callback_t uart_set_callback(uart_callback_t cb);
 /*
  * Initializes the USART registers, enables the ISR
  */
-void uart_setup(void);
+void uart_setup(uart_callback_t cb);
 
 /*
  * Writes a string/char[] to the serial port.

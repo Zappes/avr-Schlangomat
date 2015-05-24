@@ -8,14 +8,14 @@
 #include "sensors.h"
 
 uint8_t sensors_sensorpins[] = { SENSORS_PIN1, SENSORS_PIN2 };
-sensor_reading sensors_readings[SENSORS_COUNT];
-sensor_reading sensors_error = {SENSORS_ERR_INDEX, 1, 0 , 0, 0};
+Sensor_Reading sensors_readings[SENSORS_COUNT];
+Sensor_Reading sensors_error = {SENSORS_ERR_INDEX, 1, 0 , 0, 0};
 
 void sensors_setup(void) {
 	sensors_update_sensor(0);
 }
 
-sensor_reading sensors_read_sensor(uint8_t sensor) {
+Sensor_Reading sensors_read_sensor(uint8_t sensor) {
 	if (sensor > 0 && sensor <= SENSORS_COUNT) {
 		return sensors_readings[sensor - 1];
 	}

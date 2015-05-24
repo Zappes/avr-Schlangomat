@@ -37,7 +37,7 @@ usb_callback_t usb_set_callback(usb_callback_t cb) {
 }
 
 /** Configures the board hardware and chip peripherals for the demo's functionality. */
-void usb_setup(void) {
+void usb_setup(usb_callback_t cb) {
 	/* Disable watchdog if enabled by bootloader/fuses */
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
@@ -50,6 +50,8 @@ void usb_setup(void) {
 
 	/* Create a regular character stream for the interface so that it can be used with the stdio.h functions */
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
+
+	usb_set_callback(cb);
 }
 
 void usb_read_loop() {
