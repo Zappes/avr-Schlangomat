@@ -36,7 +36,7 @@
 #ifndef _SCHLANGOMAT_H_
 #define _SCHLANGOMAT_H_
 
-#define SENSOR_INTERVAL_SECS 5
+#define SENSOR_INTERVAL_SECS 15
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

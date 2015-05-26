@@ -13,8 +13,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #include "sensors.h"
+#include "relay.h"
 #include "debug.h"
 
 #define RULES_COUNT 4
