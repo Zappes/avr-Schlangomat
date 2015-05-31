@@ -20,7 +20,9 @@ void timer_setup(uint8_t scale_limit) {
 }
 
 void timer_set_scale_limit(uint8_t scale_limit) {
-	timer_scale_limit = scale_limit;
+	if(scale_limit > 0) {
+		timer_scale_limit = scale_limit;
+	}
 }
 
 uint8_t timer_get_scale_limit(void) {

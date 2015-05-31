@@ -8,15 +8,15 @@
 #include "parser.h"
 
 int get_num_from_param(char* param_buffer, int max) {
-	int num = 0;
+	long int num = 0;
 
 	if (strlen(param_buffer) > 0) {
-		num = atoi(param_buffer);
+		num = strtol(param_buffer, 0, 10);
 		if (num > max || num < 0)
 			num = 0;
 	}
 
-	return num;
+	return (int)num;
 }
 
 bool is_command(char* buffer, char* command) {

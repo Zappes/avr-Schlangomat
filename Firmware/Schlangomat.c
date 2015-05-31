@@ -44,6 +44,27 @@ void dump_sensors(void) {
 	}
 }
 
+void print_rule(uint8_t rule_number) {
+	char buffer[10] = { 0 };
+
+	int result = rules_print_rule(rule_number, buffer);
+	usb_write_formatted("Rule[%d]: ", rule_number);
+
+	switch(result) {
+		case 0:
+			usb_writeln_string(buffer);
+			break;
+		case RULES_ERR_INACTIVE:
+			usb_writeln_string("inactive");
+			break;
+		case RULES_ERR_INDEX:
+			usb_writeln_string("index error");
+			break;
+		default:
+			usb_writeln_string("unknown error");
+	}
+}
+
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -74,20 +95,24 @@ int main(void) {
 			char* input = (char*)usb_buffer;
 
 			if (is_command(input, "esp")) {
-				sprintf(output_buffer, "> UART: %s\r\n", usb_buffer + 4);
-				usb_write_string(output_buffer);
 				uart_writeln_string(input + 4);
 			} else if (is_command(input, "setrule")) {
-				int rule_number = atoi(input + 7);
+				int rule_number = get_num_from_param(input + 7, RULES_COUNT);
 				char* rule_start = input + 7;
 				while (*rule_start < ':' && *rule_start != 0)
 					rule_start++;
-				usb_writeln_formatted("SETRULE %d [%d]", rule_number, rules_set_rule(rule_number, rule_start));
+				rules_set_rule(rule_number, rule_start);
 			} else if (is_command(input, "getrule")) {
-				char buffer[8] = { 0 };
-				int rule_number = atoi(input + 7);
-				int result = rules_print_rule(rule_number, buffer);
-				usb_writeln_formatted("GETRULE %d [%d]: %s", rule_number, result, buffer);
+				int rule_number = get_num_from_param(input + 7, RULES_COUNT);
+
+				if(rule_number == 0) {
+					for(int i = 1; i <= RULES_COUNT; i++) {
+						print_rule(i);
+					}
+				}
+				else {
+					print_rule(rule_number);
+				}
 			} else if (is_command(input, "on")) {
 				relay_on(get_num_from_param(input + 2, 4));
 			} else if (is_command(input, "off")) {
@@ -104,6 +129,10 @@ int main(void) {
 				}
 			} else if (is_command(input, "sens")) {
 				dump_sensors();
+			} else if (is_command(input, "setinterval")) {
+				timer_set_scale_limit(get_num_from_param(input + 11, 255));
+			} else if (is_command(input, "getinterval")) {
+				usb_writeln_formatted("Interval: %d", timer_get_scale_limit());
 			} else {
 				usb_writeln_formatted("?: %s\r\n", usb_buffer);
 			}
