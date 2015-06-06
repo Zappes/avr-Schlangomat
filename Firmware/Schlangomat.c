@@ -65,6 +65,91 @@ void print_rule(uint8_t rule_number) {
 	}
 }
 
+//============================================================================================
+// ESP stuff
+//============================================================================================
+#define ESP_POSITIVE_REPLY "OK"
+#define ESP_NEGATIVE_REPLY "ERROR"
+
+volatile uint8_t esp_waitresult = 0xFF;
+char* esp_positive_reply = ESP_POSITIVE_REPLY;
+char* esp_negative_reply = ESP_NEGATIVE_REPLY;
+
+void esp_handle_http(char* buffer) {
+	static int status[4] = 0;
+
+
+	if(is_command(buffer+2, "connect")) {
+
+		status = 1;
+	}
+	else if(status == 1 && is_command(buffer, "ok")) {
+		status = 0;
+	}
+}
+
+void esp_handle_result(char* buffer) {
+	if(strncmp(buffer, esp_positive_reply, strlen(esp_positive_reply) + 1) == 0) {
+		esp_waitresult = 0;
+	}
+	else	if(strncmp(buffer, esp_negative_reply, strlen(esp_negative_reply) + 1) == 0) {
+		esp_waitresult = 1;
+	}
+}
+
+/**
+ * Executes a command on the ESP8266 and blocks until the ESP has sent either the
+ * positive or negative answer.
+ *
+ * It is possible to specify the expected success/error string as the fucking AT
+ * firmware isn't really consistent about that. If you send AT+RST, you get OK
+ * immediately. The command isn't done until you receive "ready", though ...
+ *
+ * Default values for pos/neg are OK and ERR. You can simply specify 0 for the
+ * arguments if the defaults are OK for your command.
+ */
+uint8_t esp_exec_command(char* command, char* positive_reply, char* negative_reply) {
+	esp_waitresult = 0xFF;
+
+	// set the markers for negative/positive replies
+	if(positive_reply != 0) {
+		esp_positive_reply = positive_reply;
+	}
+
+	if(negative_reply != 0) {
+		esp_negative_reply = negative_reply;
+	}
+
+	uart_callback_t cb = uart_set_callback(esp_handle_result);
+
+	uart_writeln_string(command);
+
+	// as long as the result code hasn't been changed by the handler, wait.
+	// if there's no result after the timeout, stop waiting.
+	int counter = 500;
+	while((esp_waitresult == 0xFF) && (--counter != 0)) {
+		_delay_ms(10);
+	}
+
+	uart_set_callback(cb);
+
+	esp_positive_reply = ESP_POSITIVE_REPLY;
+	esp_negative_reply = ESP_NEGATIVE_REPLY;
+
+	return esp_waitresult;
+}
+
+void esp_setup(void) {
+	// reset the chip.
+	usb_writeln_formatted("Reset: %d", esp_exec_command("AT+RST", "ready", 0));
+	usb_writeln_formatted("CIPMUX: %d", esp_exec_command("AT+CIPMUX=1", 0, 0));
+	usb_writeln_formatted("CIPSERVER: %d", esp_exec_command("AT+CIPSERVER=1,80", 0, 0));
+}
+//============================================================================================
+
+
+
+
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -72,13 +157,17 @@ int main(void) {
 	cli();
 
 	usb_setup(handle_usb);
-	uart_setup(handle_uart);
+	sensors_setup();
 	relay_setup();
 	rules_setup();
-	sensors_setup();
 	timer_setup(SENSOR_INTERVAL_SECS);
+	uart_setup(handle_uart);
 
 	sei();
+
+	// setting up the esp needs functioning communications, so we have to do it AFTER interrupts
+	// are enabled.
+	esp_setup();
 
 	char output_buffer[OUTPUT_BUFFER_SIZE];
 
