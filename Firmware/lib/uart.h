@@ -21,36 +21,51 @@
 // the size of the buffer used for formatted output
 #define UART_COMMAND_BUFFER_SIZE 64
 
-typedef void (*uart_callback_t)(char* commandBuffer);
+#define UART_MODE_COMMAND 0
+#define UART_MODE_SERVER 1
 
-/*
- * Sets the callback reference for buffer ready events 
- */
-uart_callback_t uart_set_callback(uart_callback_t cb);
-
-/*
+/**
  * Initializes the USART registers, enables the ISR
  */
-void uart_setup(uart_callback_t cb);
+void uart_setup(void);
 
-/*
+/**
+ * Returns the UART buffer, if it is complete, or 0 if it isn't.
+ */
+char* uart_get_buffer(void);
+
+/**
  * Writes a string/char[] to the serial port.
  */
 void uart_write_string(char *str);
 
-/*
+/**
  * Writes the prompt followed by a colon, a space, the value and \r\n.
  */
 void uart_write_formatted(const char* format, ...);
 
-/*
+/**
  * Writes a string/char[] to the serial port.
  */
 void uart_writeln_string(char *str);
 
-/*
+/**
  * Writes the prompt followed by a colon, a space, the value and \r\n.
  */
 void uart_writeln_formatted(const char* format, ...);
+
+/**
+ * Sets either command or server mode.
+ *
+ * Allowed parameters are UART_MODE_COMMAND and UART_MODE_SERVER.
+ */
+void uart_set_isr_mode(uint8_t mode);
+
+/**
+ * Returns the current mode.
+ */
+uint8_t uart_get_isr_mode(void);
+
+
 
 #endif

@@ -30,14 +30,8 @@
  */
 USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface;
 
-typedef void (*usb_callback_t)(char* commandBuffer);
-
-/*
- * Sets the callback reference for buffer ready events
- */
-usb_callback_t usb_set_callback(usb_callback_t cb);
-void usb_setup(usb_callback_t cb);
-void usb_read_loop(void);
+void usb_setup(void);
+char* usb_get_buffer(void);
 
 /*
  * Writes a string/char[] to the serial port.

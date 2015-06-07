@@ -7,7 +7,9 @@
 
 #include "usb.h"
 
-volatile char usb_input_buffer[USB_INPUT_BUFFER_SIZE] = { 0 };
+char usb_input_buffer[USB_INPUT_BUFFER_SIZE] = { 0 };
+char usb_output_buffer[USB_INPUT_BUFFER_SIZE+1] = { 0 };
+
 uint8_t usb_command_pos = 0;
 
 /** Standard file stream for the CDC interface when set up, so that the virtual CDC COM port can be
@@ -24,20 +26,8 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface = { .Config = { .ControlI
 CDC_NOTIFICATION_EPADDR, .Size =
 CDC_NOTIFICATION_EPSIZE, .Banks = 1, }, }, };
 
-usb_callback_t usb_buffer_ready_callback = 0x00;
-
-/*
- * Sets the callback reference for buffer ready events
- */
-usb_callback_t usb_set_callback(usb_callback_t cb) {
-	usb_callback_t old = usb_buffer_ready_callback;
-	usb_buffer_ready_callback = cb;
-
-	return old;
-}
-
 /** Configures the board hardware and chip peripherals for the demo's functionality. */
-void usb_setup(usb_callback_t cb) {
+void usb_setup(void) {
 	/* Disable watchdog if enabled by bootloader/fuses */
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
@@ -50,11 +40,9 @@ void usb_setup(usb_callback_t cb) {
 
 	/* Create a regular character stream for the interface so that it can be used with the stdio.h functions */
 	CDC_Device_CreateStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
-
-	usb_set_callback(cb);
 }
 
-void usb_read_loop() {
+char* usb_get_buffer() {
 	int currentValue;
 
 	do {
@@ -63,16 +51,21 @@ void usb_read_loop() {
 		if (currentValue != EOF) {
 			if (usb_command_pos >= (USB_INPUT_BUFFER_SIZE - 1) || currentValue == 10 || currentValue == 13) {
 
-				usb_buffer_ready_callback(usb_input_buffer);
+				memcpy(usb_output_buffer, usb_input_buffer, USB_INPUT_BUFFER_SIZE);
+				usb_output_buffer[USB_INPUT_BUFFER_SIZE] = 0;
 
 				usb_command_pos = 0;
 				usb_input_buffer[0] = 0;
+
+				return usb_output_buffer;
 			} else {
 				usb_input_buffer[usb_command_pos++] = (char) currentValue;
 				usb_input_buffer[usb_command_pos] = 0;
 			}
 		}
 	} while (currentValue != EOF);
+
+	return 0;
 }
 
 /*

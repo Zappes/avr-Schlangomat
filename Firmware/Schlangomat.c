@@ -1,38 +1,5 @@
 #include "Schlangomat.h"
 
-#define OUTPUT_BUFFER_SIZE 96
-#define UART_BUFFER_SIZE 64
-#define USB_BUFFER_SIZE 64
-
-volatile char uart_buffer[UART_BUFFER_SIZE] = { 0 };
-volatile uint8_t uart_ready = 0;
-volatile char usb_buffer[USB_BUFFER_SIZE] = { 0 };
-volatile uint8_t usb_ready = 0;
-
-void handle_uart(char* buffer) {
-	for (int i = 0; i < UART_BUFFER_SIZE - 1; i++) {
-		uart_buffer[i] = buffer[i];
-
-		if (buffer[i] == 0)
-			break;
-	}
-
-	uart_buffer[UART_BUFFER_SIZE - 1] = 0;
-	uart_ready = 1;
-}
-
-void handle_usb(char* buffer) {
-	for (int i = 0; i < USB_BUFFER_SIZE - 1; i++) {
-		usb_buffer[i] = buffer[i];
-
-		if (buffer[i] == 0)
-			break;
-	}
-
-	usb_buffer[USB_BUFFER_SIZE - 1] = 0;
-	usb_ready = 1;
-}
-
 void dump_sensors(void) {
 	for (uint8_t i = 1; i <= SENSORS_COUNT; i++) {
 		Sensor_Reading reading = sensors_read_sensor(i);
@@ -50,7 +17,7 @@ void print_rule(uint8_t rule_number) {
 	int result = rules_print_rule(rule_number, buffer);
 	usb_write_formatted("Rule[%d]: ", rule_number);
 
-	switch(result) {
+	switch (result) {
 		case 0:
 			usb_writeln_string(buffer);
 			break;
@@ -71,32 +38,6 @@ void print_rule(uint8_t rule_number) {
 #define ESP_POSITIVE_REPLY "OK"
 #define ESP_NEGATIVE_REPLY "ERROR"
 
-volatile uint8_t esp_waitresult = 0xFF;
-char* esp_positive_reply = ESP_POSITIVE_REPLY;
-char* esp_negative_reply = ESP_NEGATIVE_REPLY;
-
-void esp_handle_http(char* buffer) {
-	static int status[4] = 0;
-
-
-	if(is_command(buffer+2, "connect")) {
-
-		status = 1;
-	}
-	else if(status == 1 && is_command(buffer, "ok")) {
-		status = 0;
-	}
-}
-
-void esp_handle_result(char* buffer) {
-	if(strncmp(buffer, esp_positive_reply, strlen(esp_positive_reply) + 1) == 0) {
-		esp_waitresult = 0;
-	}
-	else	if(strncmp(buffer, esp_negative_reply, strlen(esp_negative_reply) + 1) == 0) {
-		esp_waitresult = 1;
-	}
-}
-
 /**
  * Executes a command on the ESP8266 and blocks until the ESP has sent either the
  * positive or negative answer.
@@ -109,34 +50,25 @@ void esp_handle_result(char* buffer) {
  * arguments if the defaults are OK for your command.
  */
 uint8_t esp_exec_command(char* command, char* positive_reply, char* negative_reply) {
-	esp_waitresult = 0xFF;
-
-	// set the markers for negative/positive replies
-	if(positive_reply != 0) {
-		esp_positive_reply = positive_reply;
-	}
-
-	if(negative_reply != 0) {
-		esp_negative_reply = negative_reply;
-	}
-
-	uart_callback_t cb = uart_set_callback(esp_handle_result);
+	char* esp_positive_reply = positive_reply ? positive_reply : ESP_POSITIVE_REPLY;
+	char* esp_negative_reply = negative_reply ? negative_reply : ESP_NEGATIVE_REPLY;
 
 	uart_writeln_string(command);
 
-	// as long as the result code hasn't been changed by the handler, wait.
-	// if there's no result after the timeout, stop waiting.
-	int counter = 500;
-	while((esp_waitresult == 0xFF) && (--counter != 0)) {
-		_delay_ms(10);
+	char* uart_result;
+	uint8_t maxlines = 20;
+	while (--maxlines != 0) {
+		while (!(uart_result = uart_get_buffer()))
+			;
+
+		if (strncmp(uart_result, esp_positive_reply, strlen(esp_positive_reply) + 1) == 0) {
+			return 0;
+		} else if (strncmp(uart_result, esp_negative_reply, strlen(esp_negative_reply) + 1) == 0) {
+			return 1;
+		}
 	}
 
-	uart_set_callback(cb);
-
-	esp_positive_reply = ESP_POSITIVE_REPLY;
-	esp_negative_reply = ESP_NEGATIVE_REPLY;
-
-	return esp_waitresult;
+	return 0xFF;
 }
 
 void esp_setup(void) {
@@ -147,21 +79,18 @@ void esp_setup(void) {
 }
 //============================================================================================
 
-
-
-
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
 int main(void) {
 	cli();
 
-	usb_setup(handle_usb);
+	usb_setup();
 	sensors_setup();
 	relay_setup();
 	rules_setup();
 	timer_setup(SENSOR_INTERVAL_SECS);
-	uart_setup(handle_uart);
+	uart_setup();
 
 	sei();
 
@@ -169,21 +98,20 @@ int main(void) {
 	// are enabled.
 	esp_setup();
 
-	char output_buffer[OUTPUT_BUFFER_SIZE];
+	char* input;
 
 	for (;;) {
-		if(timer_ready()) {
+		if (timer_ready()) {
 			sensors_update_sensor(0);
 			rules_execute();
 			timer_done();
 		}
 
-		usb_read_loop();
-		if (usb_ready) {
-			output_buffer[0] = 0;
-			char* input = (char*)usb_buffer;
-
-			if (is_command(input, "esp")) {
+		input = usb_get_buffer();
+		if (input) {
+			if (is_command(input, "espsetup")) {
+				esp_setup();
+			} else if (is_command(input, "esp")) {
 				uart_writeln_string(input + 4);
 			} else if (is_command(input, "setrule")) {
 				int rule_number = get_num_from_param(input + 7, RULES_COUNT);
@@ -194,12 +122,11 @@ int main(void) {
 			} else if (is_command(input, "getrule")) {
 				int rule_number = get_num_from_param(input + 7, RULES_COUNT);
 
-				if(rule_number == 0) {
-					for(int i = 1; i <= RULES_COUNT; i++) {
+				if (rule_number == 0) {
+					for (int i = 1; i <= RULES_COUNT; i++) {
 						print_rule(i);
 					}
-				}
-				else {
+				} else {
 					print_rule(rule_number);
 				}
 			} else if (is_command(input, "on")) {
@@ -223,17 +150,13 @@ int main(void) {
 			} else if (is_command(input, "getinterval")) {
 				usb_writeln_formatted("Interval: %d", timer_get_scale_limit());
 			} else {
-				usb_writeln_formatted("?: %s\r\n", usb_buffer);
+				usb_writeln_formatted("?: %s\r\n", input);
 			}
-
-			usb_ready = 0;
 		}
 
-		if (uart_ready) {
-			sprintf(output_buffer, "< UART: %s\r\n", uart_buffer);
-			usb_write_string(output_buffer);
-
-			uart_ready = 0;
+		input = uart_get_buffer();
+		if (input) {
+			usb_writeln_formatted("< UART: %s", input);
 		}
 
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
