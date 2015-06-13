@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "lib/uart.h"
+#include "lib/esp.h"
 #include "lib/usb.h"
 #include "lib/am2302.h"
 #include "lib/relay.h"

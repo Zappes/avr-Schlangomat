@@ -32,53 +32,6 @@ void print_rule(uint8_t rule_number) {
 	}
 }
 
-//============================================================================================
-// ESP stuff
-//============================================================================================
-#define ESP_POSITIVE_REPLY "OK"
-#define ESP_NEGATIVE_REPLY "ERROR"
-
-/**
- * Executes a command on the ESP8266 and blocks until the ESP has sent either the
- * positive or negative answer.
- *
- * It is possible to specify the expected success/error string as the fucking AT
- * firmware isn't really consistent about that. If you send AT+RST, you get OK
- * immediately. The command isn't done until you receive "ready", though ...
- *
- * Default values for pos/neg are OK and ERR. You can simply specify 0 for the
- * arguments if the defaults are OK for your command.
- */
-uint8_t esp_exec_command(char* command, char* positive_reply, char* negative_reply) {
-	char* esp_positive_reply = positive_reply ? positive_reply : ESP_POSITIVE_REPLY;
-	char* esp_negative_reply = negative_reply ? negative_reply : ESP_NEGATIVE_REPLY;
-
-	uart_writeln_string(command);
-
-	char* uart_result;
-	uint8_t maxlines = 20;
-	while (--maxlines != 0) {
-		while (!(uart_result = uart_get_buffer()))
-			;
-
-		if (strncmp(uart_result, esp_positive_reply, strlen(esp_positive_reply) + 1) == 0) {
-			return 0;
-		} else if (strncmp(uart_result, esp_negative_reply, strlen(esp_negative_reply) + 1) == 0) {
-			return 1;
-		}
-	}
-
-	return 0xFF;
-}
-
-void esp_setup(void) {
-	// reset the chip.
-	usb_writeln_formatted("Reset: %d", esp_exec_command("AT+RST", "ready", 0));
-	usb_writeln_formatted("CIPMUX: %d", esp_exec_command("AT+CIPMUX=1", 0, 0));
-	usb_writeln_formatted("CIPSERVER: %d", esp_exec_command("AT+CIPSERVER=1,80", 0, 0));
-}
-//============================================================================================
-
 /** Main program entry point. This routine contains the overall program flow, including initial
  *  setup of all components and the main program loop.
  */
@@ -90,7 +43,6 @@ int main(void) {
 	relay_setup();
 	rules_setup();
 	timer_setup(SENSOR_INTERVAL_SECS);
-	uart_setup();
 
 	sei();
 
@@ -99,6 +51,7 @@ int main(void) {
 	esp_setup();
 
 	char* input;
+	char output[128] = {0};
 
 	for (;;) {
 		if (timer_ready()) {
@@ -112,7 +65,9 @@ int main(void) {
 			if (is_command(input, "espsetup")) {
 				esp_setup();
 			} else if (is_command(input, "esp")) {
-				uart_writeln_string(input + 4);
+				uint8_t result = esp_exec_function(input + 4, 0, 0, output, sizeof(output));
+				usb_writeln_string(output);
+				usb_writeln_formatted("ESP: %d", result);
 			} else if (is_command(input, "setrule")) {
 				int rule_number = get_num_from_param(input + 7, RULES_COUNT);
 				char* rule_start = input + 7;
@@ -152,11 +107,6 @@ int main(void) {
 			} else {
 				usb_writeln_formatted("?: %s\r\n", input);
 			}
-		}
-
-		input = uart_get_buffer();
-		if (input) {
-			usb_writeln_formatted("< UART: %s", input);
 		}
 
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
