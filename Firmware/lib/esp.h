@@ -9,25 +9,40 @@
 #ifndef ESP_H_
 #define ESP_H_
 
+#include <string.h>
+#include <stdlib.h>
+
 #include <avr/io.h>
-#include <lib/usb.h>
-#include <lib/debug.h>
+
+#include "debug.h"
+#include "lib/relay.h"
+#include "lib/rules.h"
+#include "lib/sensors.h"
+
 
 // @see 14.3.1 Internal Clock Generation � The Baud Rate Generator
 #define ESP_BAUD_RATE 9600L
 #define ESP_BAUD_CALC(ESP_BAUD_RATE,F_CPU) ((F_CPU)/((ESP_BAUD_RATE)*16l)-1)
 
-// the size of the buffer used for formatted output
-#define ESP_FORMAT_BUFFER_SIZE 96
-
-// the size of the buffer used for formatted output
+// the size of the buffer used for command input
 #define ESP_COMMAND_BUFFER_SIZE 64
 
-#define ESP_MODE_COMMAND 0
-#define ESP_MODE_SERVER 1
+// the size of the buffer used for output formatting
+#define ESP_FORMAT_BUFFER_SIZE 64
+
+// the size of the buffer used for server request processing
+#define ESP_SERVER_BUFFER_SIZE 512
+
+#define ESP_MODE_COMMAND	0
+#define ESP_MODE_SERVER		1
+#define ESP_MODE_SEND			2
 
 #define ESP_POSITIVE_REPLY "OK"
 #define ESP_NEGATIVE_REPLY "ERROR"
+
+#define ESP_NUM_CHANNELS 5
+
+#define ESP_SEND_DELAY_MS 500
 
 /**
  * Initializes the USART registers, enables the ISR
@@ -81,6 +96,13 @@ void esp_set_isr_mode(uint8_t mode);
  */
 uint8_t esp_get_isr_mode(void);
 
+/**
+ * Handles requests that were identified in the interrupt routine.
+ *
+ * Whenever the interrupt handler detects a request, it enqueues it. The main program loop is supposed
+ * to call this one periodically in order to handle those requests.
+ */
+void esp_handle_pending_requests(void);
 
 
 #endif

@@ -68,6 +68,10 @@ char* usb_get_buffer() {
 	return 0;
 }
 
+void usb_write_char(char c) {
+	fputc(c, &USBSerialStream);
+}
+
 /*
  * Writes a string/char[] to the serial port.
  */

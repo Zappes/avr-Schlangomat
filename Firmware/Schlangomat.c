@@ -111,5 +111,6 @@ int main(void) {
 
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 		USB_USBTask();
+		esp_handle_pending_requests();
 	}
 }

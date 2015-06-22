@@ -10,12 +10,13 @@
 
 #include "esp.h"
 
-char esp_command_buffer[ESP_COMMAND_BUFFER_SIZE] = {0};
-char esp_output_buffer[ESP_COMMAND_BUFFER_SIZE+1] = {0};
+char esp_command_buffer[ESP_COMMAND_BUFFER_SIZE] = { 0 };
+char esp_output_buffer[ESP_COMMAND_BUFFER_SIZE + 1] = { 0 };
 
 volatile uint8_t esp_ready = 0;
-uint8_t esp_buffer_pos = 0;
 uint8_t esp_isr_mode = ESP_MODE_COMMAND;
+
+uint8_t request_channels[ESP_NUM_CHANNELS] = { 0 };
 
 void esp_setup(void) {
 	UCSR1C |= (1 << UCSZ10) | (1 << UCSZ11); // 1 Stop-Bit, 8 Bits
@@ -37,6 +38,8 @@ void esp_setup(void) {
 	usb_writeln_formatted("Reset: %d", esp_exec_command("AT+RST", "ready", 0));
 	usb_writeln_formatted("CIPMUX: %d", esp_exec_command("AT+CIPMUX=1", 0, 0));
 	usb_writeln_formatted("CIPSERVER: %d", esp_exec_command("AT+CIPSERVER=1,80", 0, 0));
+
+	esp_set_isr_mode(ESP_MODE_SERVER);
 }
 
 /**
@@ -64,14 +67,15 @@ uint8_t esp_exec_function(char* command, char* positive_reply, char* negative_re
 	char* esp_positive_reply = positive_reply ? positive_reply : ESP_POSITIVE_REPLY;
 	char* esp_negative_reply = negative_reply ? negative_reply : ESP_NEGATIVE_REPLY;
 
-	if(use_buffer) {
+	if (use_buffer) {
 		memset(result_buffer, 0, result_buffer_size);
 	}
 
 	esp_set_isr_mode(ESP_MODE_COMMAND);
 
 	// clear buffer
-	while(esp_get_buffer());
+	while (esp_get_buffer())
+		;
 
 	esp_writeln_string(command);
 
@@ -83,7 +87,7 @@ uint8_t esp_exec_function(char* command, char* positive_reply, char* negative_re
 			_delay_ms(1);
 		}
 
-		if(timeout == 0) {
+		if (timeout == 0) {
 			return 0xFD;
 		}
 
@@ -95,7 +99,7 @@ uint8_t esp_exec_function(char* command, char* positive_reply, char* negative_re
 			break;
 		} else if (use_buffer) {
 			// the comparison with buffer size - 3 makes sure that enough buffer is left for crlf and a null byte
-			if(result_pos < result_buffer_size - 3) {
+			if (result_pos < result_buffer_size - 3) {
 				size_t result_size = strlen(esp_result) + 2;
 				size_t buffer_size = result_buffer_size - result_pos;
 				size_t copy_size = result_size < buffer_size ? result_size : buffer_size;
@@ -114,7 +118,7 @@ uint8_t esp_exec_function(char* command, char* positive_reply, char* negative_re
 }
 
 void esp_set_isr_mode(uint8_t mode) {
-	if (mode == ESP_MODE_COMMAND || mode == ESP_MODE_SERVER) {
+	if (mode == ESP_MODE_COMMAND || mode == ESP_MODE_SERVER || mode == ESP_MODE_SEND) {
 		esp_isr_mode = mode;
 	}
 }
@@ -173,7 +177,7 @@ void esp_writeln_formatted(const char* format, ...) {
 }
 
 char* esp_get_buffer() {
-	if(esp_ready) {
+	if (esp_ready) {
 		esp_ready = 0;
 		return esp_output_buffer;
 	}
@@ -181,45 +185,188 @@ char* esp_get_buffer() {
 	return 0;
 }
 
-void esp_isr_handler_command(void) {
-	char chr_read;
-	chr_read = UDR1;
+/*
+ * Handles bytes received from the serial port in command mode.
+ * Fills up the command buffer and calls
+ * the bufferReadyCallback when the buffer overflows or a linefeed/newline has been
+ * sent.
+ */
+void esp_isr_handler_command(char chr_read) {
+	static uint8_t buffer_pos = 0;
 
 	if (chr_read != 10 && chr_read != 13) {
-		esp_command_buffer[esp_buffer_pos++] = chr_read;
-		esp_command_buffer[esp_buffer_pos] = 0x00;
+		esp_command_buffer[buffer_pos++] = chr_read;
+		esp_command_buffer[buffer_pos] = 0x00;
 	}
 
-	if ((esp_buffer_pos >= (ESP_COMMAND_BUFFER_SIZE - 1)) || ((chr_read == '\n' || chr_read == '\r'))) {
-		if (esp_buffer_pos > 0) {
+	if ((buffer_pos >= (ESP_COMMAND_BUFFER_SIZE - 1)) || ((chr_read == '\n' || chr_read == '\r'))) {
+		if (buffer_pos > 0) {
 			memcpy(esp_output_buffer, esp_command_buffer, ESP_COMMAND_BUFFER_SIZE);
 			esp_output_buffer[ESP_COMMAND_BUFFER_SIZE] = 0;
 			esp_ready = 1;
 		}
 
 		// clear command buffer.
-		memset(esp_command_buffer, 0, ESP_COMMAND_BUFFER_SIZE);
-		esp_buffer_pos = 0;
+		buffer_pos = 0;
+		esp_command_buffer[0] = 0;
 	}
 }
 
-void esp_isr_handler_server(void) {
-	// todo: implement handling of server requests. these work differently - see ESP8266 documentation for +IPD
-	// implement this so get/post call different handlers that have the required parameters passed to them.
+void esp_isr_handler_server(char chr_read) {
+#define PMODE_READ_COMMAND					0
+#define PMODE_PROCESS_IPD_CHANNEL		1
+#define PMODE_PROCESS_IPD_SIZE			2
+#define PMODE_PROCESS_IPD_BODY			3
+#define PMODE_PROCESS_IPD_STOP			4
+
+	static char buffer[ESP_SERVER_BUFFER_SIZE + 1] = { 0 };
+	static uint8_t buffer_pos = 0;
+	static uint8_t parse_mode = PMODE_READ_COMMAND;
+	static uint8_t channel = 0;
+	static long size = 0;
+	static long body_count = 0;
+
+	switch (parse_mode) {
+		case PMODE_READ_COMMAND:
+			if (chr_read == 10 || chr_read == 13 || buffer_pos >= ESP_SERVER_BUFFER_SIZE) {
+				buffer_pos = 0;
+				buffer[0] = 0;
+			} else {
+				buffer[buffer_pos++] = chr_read;
+				buffer[buffer_pos] = 0;
+
+				if (strncasecmp(buffer, "+IPD,", 5) == 0) {
+					parse_mode = PMODE_PROCESS_IPD_CHANNEL;
+					buffer_pos = 0;
+					buffer[0] = 0;
+				}
+			}
+			break;
+		case PMODE_PROCESS_IPD_CHANNEL:
+			if (chr_read == ',') {
+				channel = strtol(buffer, 0, 10);
+
+				if (channel < ESP_NUM_CHANNELS) {
+					parse_mode = PMODE_PROCESS_IPD_SIZE;
+				} else {
+					buffer_pos = 0;
+					buffer[0] = 0;
+					parse_mode = PMODE_READ_COMMAND;
+				}
+			} else {
+				if (buffer_pos < 3) {
+					buffer[buffer_pos++] = chr_read;
+					buffer[buffer_pos] = 0;
+				} else {
+					buffer_pos = 0;
+					buffer[0] = 0;
+					parse_mode = PMODE_READ_COMMAND;
+				}
+			}
+			break;
+		case PMODE_PROCESS_IPD_SIZE:
+			if (chr_read == ':') {
+				size = strtol(buffer, 0, 10);
+
+				buffer_pos = 0;
+				buffer[0] = 0;
+				parse_mode = PMODE_PROCESS_IPD_BODY;
+			} else {
+				if (buffer_pos < 5) {
+					buffer[buffer_pos++] = chr_read;
+					buffer[buffer_pos] = 0;
+				} else {
+					buffer_pos = 0;
+					buffer[0] = 0;
+					parse_mode = PMODE_READ_COMMAND;
+				}
+			}
+			break;
+		case PMODE_PROCESS_IPD_BODY:
+			body_count++;
+
+			// todo: read request method and do something with that information.
+
+			if (body_count >= size) {
+				buffer_pos = 0;
+				buffer[0] = 0;
+				parse_mode = PMODE_PROCESS_IPD_STOP;
+			}
+			break;
+		case PMODE_PROCESS_IPD_STOP:
+			if (chr_read == 10 || chr_read == 13 || buffer_pos >= ESP_SERVER_BUFFER_SIZE) {
+				buffer_pos = 0;
+				buffer[0] = 0;
+			} else {
+				buffer[buffer_pos++] = chr_read;
+				buffer[buffer_pos] = 0;
+
+				if (strncasecmp(buffer, "OK", 2) == 0) {
+					buffer_pos = 0;
+					buffer[0] = 0;
+					parse_mode = PMODE_READ_COMMAND;
+					request_channels[channel] = 1;
+				}
+			}
+			break;
+	}
 }
 
-/*
- * Handles bytes received from the serial port. Fills up the command buffer and calls
- * the bufferReadyCallback when the buffer overflows or a linefeed/newline has been
- * sent.
- */
+volatile uint8_t send_status = 0;
+
+void esp_isr_handler_send(char chr_read) {
+	if (chr_read == '>') {
+		send_status = 1;
+	}
+}
+
+void esp_send_http_response(uint8_t channel, char* response) {
+	uint8_t old_mode = esp_get_isr_mode();
+	esp_set_isr_mode(ESP_MODE_SEND);
+	esp_writeln_formatted("AT+CIPSEND=%d,%d", channel, strlen(response));
+
+	while (!send_status);
+	send_status = 0;
+	esp_write_string(response);
+	_delay_ms(ESP_SEND_DELAY_MS);
+
+	esp_set_isr_mode(old_mode);
+}
+
+void esp_handle_pending_requests(void) {
+	for (uint8_t i = 0; i < ESP_NUM_CHANNELS; i++) {
+		if (request_channels[i]) {
+			char buf[128] = { 0 };
+
+			Sensor_Reading s1 = sensors_read_sensor(1);
+			Sensor_Reading s2 = sensors_read_sensor(2);
+
+			sprintf(buf, "{\"sock\":[%d,%d,%d,%d],\"sens\":[{\"h\":%d.%d,\"t\":%d.%d},{\"h\":%d.%d,\"t\":%d.%d}]}", relay_state(1), relay_state(2), relay_state(3), relay_state(4), s1.humidity,
+					s1.humidity_frac, s1.temperature, s1.temperature_frac, s2.humidity, s2.humidity_frac, s2.temperature, s2.temperature_frac);
+
+			esp_send_http_response(i, buf);
+
+			sprintf(buf, "AT+CIPCLOSE=%d", i);
+			esp_exec_command(buf, 0, 0);
+			request_channels[i] = 0;
+		}
+	}
+}
+
 ISR( USART1_RX_vect) {
-	switch(esp_isr_mode) {
+	char chr_read = UDR1;
+
+	DEBUGC(chr_read)
+
+	switch (esp_isr_mode) {
 		case ESP_MODE_COMMAND:
-			esp_isr_handler_command();
+			esp_isr_handler_command(chr_read);
 			break;
 		case ESP_MODE_SERVER:
-			esp_isr_handler_server();
+			esp_isr_handler_server(chr_read);
+			break;
+		case ESP_MODE_SEND:
+			esp_isr_handler_send(chr_read);
 			break;
 	}
 }

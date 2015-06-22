@@ -33,6 +33,8 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface;
 void usb_setup(void);
 char* usb_get_buffer(void);
 
+void usb_write_char(char c);
+
 /*
  * Writes a string/char[] to the serial port.
  */
