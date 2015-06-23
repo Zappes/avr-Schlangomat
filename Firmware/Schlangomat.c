@@ -1,5 +1,11 @@
 #include "Schlangomat.h"
 
+FUSES = {
+		.low = (FUSE_CKSEL0 & FUSE_SUT1),
+		.high = (FUSE_EESAVE & FUSE_SPIEN),
+		.extended = (FUSE_BODLEVEL1 & FUSE_BODLEVEL2 & FUSE_HWBE)
+};
+
 void dump_sensors(void) {
 	for (uint8_t i = 1; i <= SENSORS_COUNT; i++) {
 		Sensor_Reading reading = sensors_read_sensor(i);

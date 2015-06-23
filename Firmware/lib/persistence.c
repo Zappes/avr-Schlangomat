@@ -15,16 +15,16 @@ void persistence_restore() {
 	sei();
 
 	if(persData.magic == PERSISTENCE_EEPROM_MAGIC) {
-		rules_set_rule(1, persData.rule1);
-		rules_set_rule(2, persData.rule2);
-		rules_set_rule(3, persData.rule3);
-		rules_set_rule(4, persData.rule4);
+		rules_set_rule_volatile(1, persData.rule1);
+		rules_set_rule_volatile(2, persData.rule2);
+		rules_set_rule_volatile(3, persData.rule3);
+		rules_set_rule_volatile(4, persData.rule4);
 	}
 	else {
-		rules_set_rule(1, "");
-		rules_set_rule(2, "");
-		rules_set_rule(3, "");
-		rules_set_rule(4, "");
+		rules_set_rule_volatile(1, "");
+		rules_set_rule_volatile(2, "");
+		rules_set_rule_volatile(3, "");
+		rules_set_rule_volatile(4, "");
 	}
 }
 

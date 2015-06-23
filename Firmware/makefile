@@ -25,6 +25,7 @@ CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =
 CFLAGS			 += -D__AVR_ATmega32U4__
 AVRDUDE_PROGRAMMER = usbasp
+OBJDIR       = Build
 
 
 # Default target
