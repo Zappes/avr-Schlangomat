@@ -18,6 +18,7 @@
 #include "sensors.h"
 #include "relay.h"
 #include "debug.h"
+#include "persistence.h"
 
 #define RULES_COUNT 4
 

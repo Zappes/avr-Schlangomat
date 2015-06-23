@@ -19,7 +19,7 @@ F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = Schlangomat
 SRC          = ${TARGET}.c Descriptors.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS) \
-               lib/esp.c lib/usb.c lib/am2302.c lib/relay.c lib/parser.c lib/rules.c lib/sensors.c lib/timer.c
+               lib/esp.c lib/usb.c lib/am2302.c lib/relay.c lib/parser.c lib/rules.c lib/sensors.c lib/timer.c lib/persistence.c
 LUFA_PATH    = /home/zaphod/Development/Projects/Atmel-Libs/LUFA/LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =

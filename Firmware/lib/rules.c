@@ -18,12 +18,8 @@ typedef struct {
 Rule rules[RULES_COUNT];
 
 void rules_setup(void) {
-	#ifdef DEBUG_ENABLED
-		rules_set_rule(1, "t1 15 18");
-		rules_set_rule(2, "h1 32 38");
-		rules_set_rule(3, "t2 21 26");
-		rules_set_rule(4, "h2 34 50");
-	#endif
+	// load rule set from eeprom
+	persistence_restore();
 }
 
 void rules_execute_rule(uint8_t rule_number) {
@@ -98,6 +94,8 @@ int rules_set_rule(uint8_t rule_number, char* rule) {
 
 				rules_execute_rule(rule_number);
 
+				persistence_persist();
+
 				return 0;
 			}
 		}
@@ -105,6 +103,8 @@ int rules_set_rule(uint8_t rule_number, char* rule) {
 			rules[rule_number-1].active = 0;
 
 			relay_off(rule_number);
+
+			persistence_persist();
 
 			return 0;
 		}
@@ -120,6 +120,7 @@ int rules_print_rule(uint8_t rule_number, char* buffer) {
 
 	if(rule_number > 0 && rule_number <= RULES_COUNT) {
 		if(!rules[rule_number-1].active) {
+			buffer[0] = 0;
 			return RULES_ERR_INACTIVE;
 		}
 

@@ -36,6 +36,7 @@ void esp_setup(void) {
 
 	// reset the chip.
 	usb_writeln_formatted("Reset: %d", esp_exec_command("AT+RST", "ready", 0));
+	usb_writeln_formatted("CWMODE: %d", esp_exec_command("AT+CWMODE=1", 0, 0));
 	usb_writeln_formatted("CIPMUX: %d", esp_exec_command("AT+CIPMUX=1", 0, 0));
 	usb_writeln_formatted("CIPSERVER: %d", esp_exec_command("AT+CIPSERVER=1,80", 0, 0));
 
@@ -315,20 +316,46 @@ void esp_isr_handler_server(char chr_read) {
 volatile uint8_t send_status = 0;
 
 void esp_isr_handler_send(char chr_read) {
-	if (chr_read == '>') {
-		send_status = 1;
+	static char buffer[8] = { 0 };
+	static uint8_t buffer_pos = 0;
+
+	switch (send_status) {
+
+		case 0:
+			if (chr_read == '>') {
+				buffer_pos = 0;
+				buffer[0] = 0;
+				send_status = 1;
+			}
+			break;
+		case 1:
+			if (chr_read == 10 || chr_read == 13 || buffer_pos >= 7) {
+				buffer_pos = 0;
+				buffer[0] = 0;
+			} else {
+				buffer[buffer_pos++] = chr_read;
+				buffer[buffer_pos] = 0;
+
+				if (strncasecmp(buffer, "SEND OK", 7) == 0) {
+					buffer_pos = 0;
+					buffer[0] = 0;
+					send_status = 0;
+				}
+			}
+		break;
 	}
 }
 
 void esp_send_http_response(uint8_t channel, char* response) {
 	uint8_t old_mode = esp_get_isr_mode();
 	esp_set_isr_mode(ESP_MODE_SEND);
+
+	send_status = 0;
 	esp_writeln_formatted("AT+CIPSEND=%d,%d", channel, strlen(response));
 
 	while (!send_status);
-	send_status = 0;
 	esp_write_string(response);
-	_delay_ms(ESP_SEND_DELAY_MS);
+	while (send_status);
 
 	esp_set_isr_mode(old_mode);
 }
@@ -341,8 +368,17 @@ void esp_handle_pending_requests(void) {
 			Sensor_Reading s1 = sensors_read_sensor(1);
 			Sensor_Reading s2 = sensors_read_sensor(2);
 
-			sprintf(buf, "{\"sock\":[%d,%d,%d,%d],\"sens\":[{\"h\":%d.%d,\"t\":%d.%d},{\"h\":%d.%d,\"t\":%d.%d}]}", relay_state(1), relay_state(2), relay_state(3), relay_state(4), s1.humidity,
-					s1.humidity_frac, s1.temperature, s1.temperature_frac, s2.humidity, s2.humidity_frac, s2.temperature, s2.temperature_frac);
+			char rule1[9] = {0};
+			rules_print_rule(1,rule1);
+			char rule2[9] = {0};
+			rules_print_rule(2,rule2);
+			char rule3[9] = {0};
+			rules_print_rule(3,rule3);
+			char rule4[9] = {0};
+			rules_print_rule(4,rule4);
+
+			sprintf(buf, "{\"sock\":[%d,%d,%d,%d],\"sens\":[{\"h\":%d.%d,\"t\":%d.%d},{\"h\":%d.%d,\"t\":%d.%d}],\"rule\":[\"%s\",\"%s\",\"%s\",\"%s\"]}", relay_state(1), relay_state(2), relay_state(3), relay_state(4), s1.humidity,
+					s1.humidity_frac, s1.temperature, s1.temperature_frac, s2.humidity, s2.humidity_frac, s2.temperature, s2.temperature_frac, rule1, rule2, rule3, rule4);
 
 			esp_send_http_response(i, buf);
 
@@ -355,8 +391,6 @@ void esp_handle_pending_requests(void) {
 
 ISR( USART1_RX_vect) {
 	char chr_read = UDR1;
-
-	DEBUGC(chr_read)
 
 	switch (esp_isr_mode) {
 		case ESP_MODE_COMMAND:

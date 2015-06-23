@@ -369,8 +369,8 @@ UsedLibrary="/opt/eagle-7.2.0/lbr/zilog.lbr"
 
 [Win_1]
 Type="Control Panel"
-Loc="1636 117 2617 1015"
-State=1
+Loc="3196 48 4177 918"
+State=2
 Number=0
 
 [Desktop]

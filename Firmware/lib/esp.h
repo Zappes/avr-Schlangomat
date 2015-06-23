@@ -31,7 +31,7 @@
 #define ESP_FORMAT_BUFFER_SIZE 64
 
 // the size of the buffer used for server request processing
-#define ESP_SERVER_BUFFER_SIZE 512
+#define ESP_SERVER_BUFFER_SIZE 16
 
 #define ESP_MODE_COMMAND	0
 #define ESP_MODE_SERVER		1
@@ -41,8 +41,6 @@
 #define ESP_NEGATIVE_REPLY "ERROR"
 
 #define ESP_NUM_CHANNELS 5
-
-#define ESP_SEND_DELAY_MS 500
 
 /**
  * Initializes the USART registers, enables the ISR
