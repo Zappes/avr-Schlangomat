@@ -33,30 +33,37 @@ void rules_execute_rule(uint8_t rule_number) {
 		}
 
 		Sensor_Reading reading = sensors_read_sensor(rule.sensor);
-		uint8_t sensor_value;
-		bool state = relay_state(rule_number);
 
-		switch (toupper(rule.type)) {
-			case 'T':
-				sensor_value = reading.temperature;
-				break;
-			case 'H':
-				sensor_value = reading.humidity;
-				break;
-			default:
-				return;
+		if(!reading.error) {
+			uint8_t sensor_value;
+			bool state = relay_state(rule_number);
+
+			switch (toupper(rule.type)) {
+				case 'T':
+					sensor_value = reading.temperature;
+					break;
+				case 'H':
+					sensor_value = reading.humidity;
+					break;
+				default:
+					return;
+			}
+
+			// this logic assumes that switching the relay on will RAISE the sensor value
+			// eventually. that means that it only works if we have a heater and a humidifier.
+			// if one would attach a cooler and a desiccator, things would go horribly wrong.
+			bool result = sensor_value <= (state ? rule.upper : rule.lower);
+
+			if (result && !state) {
+				// we want the relay on, but it isn't
+				relay_on(rule_number);
+			} else if (!result && state) {
+				// it is on but it shouldn't be
+				relay_off(rule_number);
+			}
 		}
-
-		// this logic assumes that switching the relay on will RAISE the sensor value
-		// eventually. that means that it only works if we have a heater and a humidifier.
-		// if one would attach a cooler and a desiccator, things would go horribly wrong.
-		bool result = sensor_value <= (state ? rule.upper : rule.lower);
-
-		if (result && !state) {
-			// we want the relay on, but it isn't
-			relay_on(rule_number);
-		} else if (!result && state) {
-			// it is on but it shouldn't be
+		else {
+			// always switch the relay off if there was an error.
 			relay_off(rule_number);
 		}
 	}

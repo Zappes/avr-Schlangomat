@@ -363,7 +363,7 @@ void esp_send_http_response(uint8_t channel, char* response) {
 void esp_handle_pending_requests(void) {
 	for (uint8_t i = 0; i < ESP_NUM_CHANNELS; i++) {
 		if (request_channels[i]) {
-			char buf[128] = { 0 };
+			char buf[256] = { 0 };
 
 			Sensor_Reading s1 = sensors_read_sensor(1);
 			Sensor_Reading s2 = sensors_read_sensor(2);
@@ -377,8 +377,10 @@ void esp_handle_pending_requests(void) {
 			char rule4[9] = {0};
 			rules_print_rule(4,rule4);
 
-			sprintf(buf, "{\"sock\":[%d,%d,%d,%d],\"sens\":[{\"h\":%d.%d,\"t\":%d.%d},{\"h\":%d.%d,\"t\":%d.%d}],\"rule\":[\"%s\",\"%s\",\"%s\",\"%s\"]}", relay_state(1), relay_state(2), relay_state(3), relay_state(4), s1.humidity,
-					s1.humidity_frac, s1.temperature, s1.temperature_frac, s2.humidity, s2.humidity_frac, s2.temperature, s2.temperature_frac, rule1, rule2, rule3, rule4);
+			sprintf(buf, "{\"sock\":[%d,%d,%d,%d],\"sens\":[{\"h\":%d.%d,\"t\":%d.%d,\"e\":%d,\"c\":%d},{\"h\":%d.%d,\"t\":%d.%d,\"e\":%d,\"c\":%d}],\"rule\":[\"%s\",\"%s\",\"%s\",\"%s\"]}", relay_state(1), relay_state(2), relay_state(3), relay_state(4), s1.humidity,
+					s1.humidity_frac, s1.temperature, s1.temperature_frac, s1.error, s1.error_count,
+					s2.humidity, s2.humidity_frac, s2.temperature, s2.temperature_frac, s2.error, s2.error_count,
+					rule1, rule2, rule3, rule4);
 
 			esp_send_http_response(i, buf);
 
