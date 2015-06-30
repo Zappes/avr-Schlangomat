@@ -1,6 +1,8 @@
 Der Schlangomat
 ===============
 
+![Symbolbild](https://raw.githubusercontent.com/Zappes/avr-Schlangomat/master/Doc/pics/Cover.png)
+
 Was ist das?
 ------------
 Der Schlangomat ist eine Kiste mit etwas Elektronik, ein paar Relais und zwei kombinierten Feuchtigkeits- und Temperatursensoren.
